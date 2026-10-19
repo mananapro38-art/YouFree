@@ -20,7 +20,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
       - name: Brand debug build YouFree
@@ -34,13 +33,27 @@ jobs:
           s=s.replace('resValue("string", "app_name", "LibreTube Debug")','resValue("string", "app_name", "YouFree")')
           p.write_text(s)
           PY
+      - name: Check build environment
+        run: |
+          java -version
+          ls -la gradlew app/build.gradle.kts gradle/wrapper/gradle-wrapper.properties
+          cat gradle/wrapper/gradle-wrapper.properties
       - name: Assemble APK
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace --console=plain 2>&1 | tee build.log
+        shell: bash
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: YouFree-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Upload build log even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouFree-build-log
+          path: build.log
+          if-no-files-found: ignore
