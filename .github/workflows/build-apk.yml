@@ -1,37 +1,46 @@
-name: Build Android APK
+name: Build YouFree APK
 on:
-  workflow_dispatch:
   push:
     branches: [main]
+  workflow_dispatch:
 jobs:
-  build:
+  android:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
-      - name: Checkout build configuration
-        uses: actions/checkout@v4
-      - name: Checkout LibreTube
+      - name: Checkout upstream LibreTube
         uses: actions/checkout@v4
         with:
           repository: libre-tube/LibreTube
-          path: upstream
           submodules: recursive
-      - name: Set up JDK
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-      - name: Build debug APK
-        working-directory: upstream
+      - name: Brand debug build YouFree
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle.kts')
+          s=p.read_text()
+          s=s.replace('applicationId = "com.github.libretube"', 'applicationId = "com.youfree.player"')
+          s=s.replace('resValue("string", "app_name", "LibreTube")','resValue("string", "app_name", "YouFree")')
+          s=s.replace('resValue("string", "app_name", "LibreTube Debug")','resValue("string", "app_name", "YouFree")')
+          p.write_text(s)
+          PY
+      - name: Assemble APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-debug-apk
-          path: upstream/**/build/outputs/apk/**/*.apk
+          name: YouFree-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
